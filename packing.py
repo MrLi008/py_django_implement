@@ -23,12 +23,17 @@ class ToDictObject(object):
         if depth > 10:
             return result
         for field in self._meta.fields:
+            if getattr(self,field.name) == None:
+                result[field.name] = None
+                continue
             if isinstance(getattr(self,field.name) , ToDictObject):
                 result[field.name] = getattr(self,field.name).toDict(depth+1)
             elif isinstance(field, (datetime.datetime,datetime.date)):
                 result[field.name] = self.__dict__[field.name].strftime('%Y-%m-%d')
             else:
                 result[field.name] = getattr(self,field.name)
+        # print ('toDict: ', result)
+        return result
 
     def toObj(self,data):
         if data == None:
@@ -43,7 +48,7 @@ def dumpdata(full=True):
     result = dict()
     for app in apps:
         models = getattr(__import__(app),'models')
-        print (models)
+        # print (models)
         if app not in result.keys():
             result[app] = dict()
         for classname in dir(models):
@@ -57,9 +62,10 @@ def dumpdata(full=True):
                     # print (classobj)
                     # all_data = classobj.objects.all()
                     # print (all_data)
-    print (result)
+    # print (result)
     with open(''.join([settings.BASE_DIR,'/','db.sqlite3.bak']),'wb') as outstream:
         pickle.dump(result,outstream)
+    # print ('back success.')
 
 def loaddata(full=True):
     with open(''.join([settings.BASE_DIR,'/','db.sqlite3.bak']), 'rb') as instream:
@@ -72,7 +78,6 @@ def loaddata(full=True):
                 if isinstance(classobj(),ToDictObject):
                     # c = classobj().toObj(val)
                     c = val
-
                     errdata.append(c)
     count = 0
     flag = True
@@ -86,4 +91,4 @@ def loaddata(full=True):
                 traceback.print_exc()
         if count >= len(errdata):
             flag = False
-    print ('save success.', str(count))
+    # print ('save success.', str(count))

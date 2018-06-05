@@ -5,8 +5,18 @@
     :funcname: 适用于django项目的数据库增改查的接口
 '''
 import traceback
+import packing
+import assistdb
 
 def checkparams(kwargs,keys,isfullkeys=True):
+    '''
+    :param kwargs: 提交的参数
+    :param keys:  指定的key
+    :param isfullkeys: 是否满key
+        True For keys中的值kwargs中必须存在
+        False For kwargs中的key 必须存在于keys中
+    :return: 检验结果
+    '''
     if not isinstance(kwargs, dict):
         raise   Exception('Please support dict for params ')
     if not isinstance(keys, list):
@@ -19,18 +29,28 @@ def checkparams(kwargs,keys,isfullkeys=True):
                 return False
         return True
     else:
-        for key in keys:
-             if key in kwargs.keys():
-                 return True
-        return False
+        for key in kwargs.keys():
+             if key not in keys:
+                 return False
+        return True
 
-def loadmodels(appname='',modelname='models'):
-    ''' 根据app名称, 载入app.models实例'''
+def loadtables(appname='',modelname='models'):
+    ''' 根据app名称, 载入app.models下所有表实例'''
+    result = list()
     try:
-        return dir(getattr(__import__(appname),modelname))
+        modelobj = getattr(__import__(appname),modelname)
+        # print (modelobj)
+
+        for classname in dir(modelobj):
+            # print (classname)
+            classobj = getattr(modelobj,classname)
+            if hasattr(classobj,'__call__') and isinstance(classobj(),packing.ToDictObject):
+                result.append(classname)
+
     except Exception as e:
         traceback.print_exc()
-    return []
+    return result
+
 
 def loadclass(appname='',modelname='models',tablename=''):
     ''' 根据app名称, 模块名称,表名获取表类'''
@@ -40,7 +60,7 @@ def loadclass(appname='',modelname='models',tablename=''):
         traceback.print_exc()
     return None
 
-def loadtable_attributes(appname='',modelname='',tablename='',with_verbose_name=False):
+def loadtable_attributes(appname='',modelname='models',tablename='',with_verbose_name=False):
     ''' 根据app名称, 模块名称,表名 获取表的字段列表'''
     if with_verbose_name:
         return loadtable_attributes_with_verbose_name(appname,modelname,tablename)
@@ -106,6 +126,28 @@ def savetable_obj(appname='',modelname='models',tablename='',obj=None):
         traceback.print_exc()
     return False
 
+def loadtable_filter_cmpl(tablelist=None,condition=None):
+    '''
+
+    :param kwargs: {'condition': {......},'tablelist':[...]}
+    :return: list [dict..]
+    '''
+    res = None
+    cdm_one2many = assistdb.loaddb_cdm(condition='one_to_many')
+    # condition = kwargs.get('condition') # eg. {'id':2}
+    # tablelist = kwargs.get('tablelist') # eg. ['conf.ConfExaminationItem', 'conf.ConfExaminationPlot']
+    if not isinstance(tablelist, list) or not isinstance(condition, dict):
+        raise Exception ('Please support tablelist typeof list and condition typeof dict')
+    for i in range(len(tablelist)):
+        tablename_full = tablelist[i]
+        appname = tablename_full.split('.')[0]
+        tablename = tablename_full.split('.')[-1]
+        # print (condition)
+        res = loadclass(appname=appname, tablename=tablename).objects.filter(**condition)
+        # print (res)
+        if i + 1 < len(tablelist):
+            condition = {''.join([cdm_one2many[tablelist[i]][tablelist[i + 1]],'__in']): [r.toDict().get('id') for r in res]}
+    return [r.toDict() for r in res if r is not None]
 
 def call(funcname,kwargs):
     return getattr(__file__,funcname)(**kwargs)
