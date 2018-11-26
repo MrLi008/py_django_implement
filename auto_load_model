@@ -1,0 +1,47 @@
+# coding=utf-8
+
+def loadurl():
+    '''
+    自动加载新配置的url 接口
+    要求: 每个新加的包的__init__.py文件,包含__all__字段,
+    只加载该字段下的模块
+    :return:
+    '''
+    def loadurl_(pkgname, modelname_, classname_):
+        urllist = set()
+        for h in __import__(pkgname).__dict__.get('__all__'):
+            for modelname, val in __import__('.'.join([pkgname, h])).__dict__.items():
+                if modelname_ in modelname:
+                    for classname, v in val.__dict__.items():
+                        if classname_ in classname:
+                            urllist.add((''.join([r'/', classname.lower()]), v))
+        return [url for url in urllist]
+    urllist = loadurl_('handle', 'handle', 'Handle') + \
+        loadurl_('application', 'evidence', 'Evidence')
+
+    # for h in handle.__dict__.get('__all__'):
+    #     for modelname, val in __import__('.'.join(['handle', h])).__dict__.items():
+    #         if 'handle' in modelname:
+    #             for classname, v in val.__dict__.items():
+    #                 if 'Handle' in classname :
+    #                     urllist.add((''.join([r'/',classname.lower()]), v))
+
+    # urllist += [
+    #     # 要素,证据项标记
+    #     (''.join([r'/', 'markevidence']), application.markevidence.MarkEvidence),
+    #     # 查看标记效果
+    #     (''.join([r'/', 'checkevidence']), application.checkevidence.CheckEvidence),
+    # ]
+
+    # for h in application.__dict__.get('__all__'):
+    #     for modelname, val in __import__('.'.join(['application', h])).__dict__.items():
+    #         if 'evidence' in modelname:
+    #             for classname, v in val.__dict__.items():
+    #                 if 'Evidence' in classname :
+    #                     urllist.add((''.join([r'/',classname.lower()]), v))
+
+    for url, _h in urllist:
+        print(''.join(['http://localhost:', settings.port, url]))
+
+
+    return urllist
